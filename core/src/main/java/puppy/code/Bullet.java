@@ -44,5 +44,25 @@ public class Bullet {
 		return false;
 	}
 
+	/** Refleja una bala que entra al campo protector de un planeta errante. */
+	public boolean rebotarEnPlaneta(float cx, float cy, float radio) {
+		float dx = spr.getX() + spr.getWidth() / 2f - cx;
+		float dy = spr.getY() + spr.getHeight() / 2f - cy;
+		float dist2 = dx * dx + dy * dy;
+		if (destroyed || dist2 >= radio * radio) return false;
+		float dist = (float) Math.sqrt(dist2);
+		float nx = dist < 0.001f ? 0f : dx / dist;
+		float ny = dist < 0.001f ? 1f : dy / dist;
+		float componenteEntrante = velocidad.x * nx + velocidad.y * ny;
+		if (componenteEntrante < 0f) {
+			velocidad.x -= 2f * componenteEntrante * nx;
+			velocidad.y -= 2f * componenteEntrante * ny;
+		}
+		// Separa la bala del planeta para evitar que rebote cada fotograma.
+		spr.setCenter(cx + nx * (radio + 5f), cy + ny * (radio + 5f));
+		spr.setRotation((float) Math.toDegrees(Math.atan2(-velocidad.x, velocidad.y)));
+		return true;
+	}
+
 	public boolean isDestroyed() { return destroyed; }
 }

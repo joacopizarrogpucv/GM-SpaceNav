@@ -68,6 +68,11 @@ public class PantallaJuego extends PantallaBase {
 	private Cometa cometa = null;
 	private float proximoCometa;
 
+	// Minijefe: planeta movil con campo gravitatorio (no coexiste con jefe ni cometa).
+	private PlanetaErrante planetaErrante = null;
+	private MovimientoGravitatorio movGravedadPlaneta = null;
+	private float proximoPlaneta;
+
 	// estrategias
 	private final EstrategiaMovimiento movRecto = new MovimientoRecto();
 	private MovimientoGravitatorio movGravedad = null;   // existe solo mientras hay jefe
@@ -102,6 +107,7 @@ public class PantallaJuego extends PantallaBase {
 
 		proximoJefe = MathUtils.random(120f, 180f); // Primer jefe entre 2 y 3 min
 		proximoCometa = MathUtils.random(15f, 30f); // Primer cometa entre 15 y 30 s
+		proximoPlaneta = MathUtils.random(35f, 55f); // Primer planeta entre 35 y 55 s
 
 		for (int i = 0; i < dificultad.getMaxAsteroides() / 2; i++) {
 			asteroides.add(crearAsteroide());
@@ -162,8 +168,9 @@ public class PantallaJuego extends PantallaBase {
 		}
 		if (Constantes.TECLAS_DEBUG && jefe == null && cometa == null) {
 			if (Gdx.input.isKeyJustPressed(Input.Keys.B)) iniciarJefe();
-			if (Gdx.input.isKeyJustPressed(Input.Keys.C)) cometa = new Cometa();
-			if (Gdx.input.isKeyJustPressed(Input.Keys.V)) cometa = new Cometa(true);   // con multiplicador
+			if (Gdx.input.isKeyJustPressed(Input.Keys.C) && planetaErrante == null) cometa = new Cometa();
+			if (Gdx.input.isKeyJustPressed(Input.Keys.V) && planetaErrante == null) cometa = new Cometa(true);   // con multiplicador
+			if (Gdx.input.isKeyJustPressed(Input.Keys.N) && planetaErrante == null) iniciarPlanetaErrante();
 		}
 	}
 
@@ -184,6 +191,7 @@ public class PantallaJuego extends PantallaBase {
 		if (acumuladorScore >= 1f) { acumuladorScore -= 1f; sumarPuntos(1); }
 
 		actualizarSpawnAsteroides(delta);
+		actualizarPlanetaErrante(delta);
 		actualizarBalas(delta);
 		actualizarAsteroides(delta);
 		actualizarItems(delta);
@@ -192,6 +200,9 @@ public class PantallaJuego extends PantallaBase {
 		actualizarCometa(delta);
 
 		nave.actualizar(delta);
+		if (planetaErrante != null) {
+			nave.checkCollision(planetaErrante.getX(), planetaErrante.getY(), planetaErrante.getRadio());
+		}
 		for (int i = asteroides.size() - 1; i >= 0; i--) {
 			if (nave.checkCollision(asteroides.get(i))) asteroides.remove(i);
 		}
@@ -224,6 +235,10 @@ public class PantallaJuego extends PantallaBase {
 		for (int i = balas.size() - 1; i >= 0; i--) {
 			Bullet b = balas.get(i);
 			b.update(delta);
+			if (b.isDestroyed()) { balas.remove(i); continue; }
+			// El planeta desvia las balas en lugar de destruirlas.
+			if (planetaErrante != null && b.rebotarEnPlaneta(
+					planetaErrante.getX(), planetaErrante.getY(), planetaErrante.getRadio() + 12f)) continue;
 
 			if (jefe != null && jefe.esVulnerable()
 					&& b.checkCollision(jefe.getX(), jefe.getY(), jefe.getRadioImpacto())) {
@@ -244,8 +259,11 @@ public class PantallaJuego extends PantallaBase {
 	private void actualizarAsteroides(float delta) {
 		for (Ball2 a : asteroides) {
 			a.setFactorVelocidad(factorVelocidad);
-			// Strategy: gravedad solo dentro de la zona del jefe
-			a.setEstrategia((jefe != null && jefe.contieneEnZona(a)) ? movGravedad : movRecto);
+			// Strategy: la misma estrategia gravitatoria funciona con jefe o planeta errante.
+			if (jefe != null && jefe.contieneEnZona(a)) a.setEstrategia(movGravedad);
+			else if (planetaErrante != null && planetaErrante.contieneEnZona(a))
+				a.setEstrategia(movGravedadPlaneta);
+			else a.setEstrategia(movRecto);
 			a.update(delta);
 		}
 		for (int i = 0; i < asteroides.size(); i++) {
@@ -312,7 +330,7 @@ public class PantallaJuego extends PantallaBase {
 
 	private void actualizarCometa(float delta) {
 		if (cometa == null) {
-			if (jefe == null && tiempo >= proximoCometa && proximoJefe - tiempo > 8f) cometa = new Cometa();
+			if (jefe == null && planetaErrante == null && tiempo >= proximoCometa && proximoJefe - tiempo > 8f) cometa = new Cometa();
 			return;
 		}
 		cometa.update(delta);
@@ -334,7 +352,33 @@ public class PantallaJuego extends PantallaBase {
 		}
 	}
 
+	/** Planeta itinerante: cruza de lado a lado e interfiere con los asteroides y la nave. */
+	private void iniciarPlanetaErrante() {
+		planetaErrante = new PlanetaErrante(MathUtils.randomBoolean(),
+				MathUtils.random(190f, Constantes.ALTO - 190f));
+		movGravedadPlaneta = new MovimientoGravitatorio(planetaErrante);
+		mostrarMensaje("PLANETA ERRANTE! EVITA SU CAMPO", 2f);
+	}
+
+	private void actualizarPlanetaErrante(float delta) {
+		if (planetaErrante == null) {
+			if (jefe == null && cometa == null && tiempo >= proximoPlaneta
+					&& proximoJefe - tiempo > 12f) iniciarPlanetaErrante();
+			return;
+		}
+		planetaErrante.actualizar(delta);
+		if (planetaErrante.haSalido()) {
+			planetaErrante = null;
+			movGravedadPlaneta = null;
+			proximoPlaneta = tiempo + MathUtils.random(40f, 65f);
+		}
+	}
+
 	private void iniciarJefe() {
+		// Un minijefe termina su visita si llega el jefe principal.
+		planetaErrante = null;
+		movGravedadPlaneta = null;
+		proximoPlaneta = tiempo + MathUtils.random(40f, 65f);
 		jefesAparecidos++;
 		jefe = new JefeEstrella(jefesAparecidos, dificultad);
 		movGravedad = new MovimientoGravitatorio(jefe);
@@ -410,6 +454,7 @@ public class PantallaJuego extends PantallaBase {
 		// capa de fondo: jefe, aviso del cometa, glow de items, barras
 		activarBlend();
 		if (jefe != null) jefe.dibujar(shape);
+		if (planetaErrante != null) planetaErrante.dibujar(shape);
 		shape.begin(ShapeType.Filled);
 		if (cometa != null && cometa.enAviso()) cometa.dibujarAviso(shape);
 		for (ItemRecarga it : items) it.dibujarFondo(shape);
@@ -482,6 +527,13 @@ public class PantallaJuego extends PantallaBase {
 			balasTxt += "   (+1 en " + String.format("%.1f", municion.getTiempoSiguiente()) + "s)";
 		}
 		f.draw(batch, balasTxt, 20, 80);
+
+		if (planetaErrante != null) {
+			f.getData().setScale(1.3f);
+			f.setColor(Color.GOLD);
+			f.draw(batch, "PLANETA ERRANTE: ESQUIVA Y DISPARA CON CUIDADO", 0,
+					Constantes.ALTO - 90, Constantes.ANCHO, Align.center, false);
+		}
 
 		if (jefe != null) {
 			f.getData().setScale(1.2f);
