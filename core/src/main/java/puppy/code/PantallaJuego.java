@@ -168,9 +168,8 @@ public class PantallaJuego extends PantallaBase {
 		}
 		if (Constantes.TECLAS_DEBUG && jefe == null && cometa == null) {
 			if (Gdx.input.isKeyJustPressed(Input.Keys.B)) iniciarJefe();
-			if (Gdx.input.isKeyJustPressed(Input.Keys.C) && planetaErrante == null) cometa = new Cometa();
-			if (Gdx.input.isKeyJustPressed(Input.Keys.V) && planetaErrante == null) cometa = new Cometa(true);   // con multiplicador
-			if (Gdx.input.isKeyJustPressed(Input.Keys.N) && planetaErrante == null) iniciarPlanetaErrante();
+			if (Gdx.input.isKeyJustPressed(Input.Keys.V) && planetaErrante == null) cometa = new Cometa(true);   // cometa de prueba con multiplicador
+			if (Gdx.input.isKeyJustPressed(Input.Keys.C) && planetaErrante == null) iniciarPlanetaErrante(); // planeta errante de prueba
 		}
 	}
 

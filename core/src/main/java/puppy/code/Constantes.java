@@ -5,7 +5,7 @@ public final class Constantes {
 	public static final int ANCHO = 1200;
 	public static final int ALTO = 800;
 
-	/** true = habilita teclas de prueba: B (invoca al jefe) y C (invoca un cometa). Ponerlo en false al entregar. */
+	/** Activa las teclas de prueba: B (jefe), V (cometa) y C (planeta errante). Desactivar para la entrega. */
 	public static final boolean TECLAS_DEBUG = true;
 
 	private Constantes() {}
