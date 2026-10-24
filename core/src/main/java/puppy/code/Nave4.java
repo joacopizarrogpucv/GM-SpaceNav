@@ -10,7 +10,9 @@ import com.badlogic.gdx.math.MathUtils;
 public class Nave4 {
 
 	private static final float TAM = 45f;
+	private static final float VELOCIDAD_BALA = 500f;
 	private static final float TIEMPO_HERIDO = 0.8f;
+	public static final int MAX_VIDAS = 5;
 
 	private boolean destruida = false;
 	private int vidas = 3;
@@ -60,12 +62,25 @@ public class Nave4 {
 		}
 	}
 
+	/** Crea una bala que sale desde la punta de la nave en la direccion en que apunta. */
+	public Bullet crearBala(Texture txBala) {
+		float dirX = -MathUtils.sinDeg(angulo);
+		float dirY = MathUtils.cosDeg(angulo);
+		float cx = getCentroX() + dirX * TAM / 2f;
+		float cy = getCentroY() + dirY * TAM / 2f;
+		return new Bullet(cx, cy, dirX * VELOCIDAD_BALA, dirY * VELOCIDAD_BALA, angulo, txBala);
+	}
 
 	public boolean checkCollision(Ball2 b) {
+		return checkCollision(b.getCentroX(), b.getCentroY(), b.getRadio());
+	}
+
+	/** Colision contra un circulo cualquiera (asteroide, laser). Si impacta, resta una vida. */
+	public boolean checkCollision(float cx, float cy, float radio) {
 		if (herido) return false;
-		float dx = getCentroX() - b.getCentroX();
-		float dy = getCentroY() - b.getCentroY();
-		float r = TAM / 2f * 0.8f + b.getRadio();
+		float dx = getCentroX() - cx;
+		float dy = getCentroY() - cy;
+		float r = TAM / 2f * 0.8f + radio;
 		if (dx * dx + dy * dy < r * r) {
 			vidas--;
 			herido = true;
@@ -77,6 +92,23 @@ public class Nave4 {
 			return true;
 		}
 		return false;
+	}
+
+	/** Suma una vida (asteroide verde). Devuelve false si ya esta al maximo. */
+	public boolean curar() {
+		if (vidas >= MAX_VIDAS) return false;
+		vidas++;
+		return true;
+	}
+
+	/** Muerte instantanea (cometa): ignora vidas e invulnerabilidad. */
+	public void matar() {
+		vidas = 0;
+		destruida = true;
+		herido = false;
+		xVel = 0;
+		yVel = 0;
+		sonidoHerido.play();
 	}
 
 	public void setEstrategia(EstrategiaMovimientoNave e) {

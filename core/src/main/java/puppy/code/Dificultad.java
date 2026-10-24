@@ -4,9 +4,9 @@ import com.badlogic.gdx.math.MathUtils;
 
 /** Parametros configurables de cada dificultad (evita duplicar codigo). */
 public enum Dificultad {
-	//            nombre     escMin escMax velBase incVel maxAst intervalo
-	NORMAL ("Normal",  1.0f, 1.0f, 120f, 0.000f, 6, 2.0f),
-	DIFICIL("Dificil", 1.0f, 1.5f, 130f, 0.015f, 9, 1.4f);
+	//         nombre     escMin escMax velBase incVel maxAst interv maxBalas escGrande probItem probCura intLaser velLaser
+	NORMAL ("Normal",  1.0f, 1.0f, 120f, 0.000f,  9, 1.30f,  5, 1.0f, 0.12f, 0.03f, 1.8f, 300f),
+	DIFICIL("Dificil", 1.0f, 1.5f, 130f, 0.015f, 14, 0.80f, 10, 1.3f, 0.35f, 0.03f, 1.1f, 380f);
 
 	private static final float FACTOR_MAXIMO = 2.2f;
 
@@ -17,9 +17,16 @@ public enum Dificultad {
 	private final float incrementoVelocidad; // por segundo de partida
 	private final int maxAsteroides;
 	private final float intervaloSpawn;
+	private final int maxBalas;
+	private final float escalaGrande;        // desde esta escala un asteroide puede llevar item
+	private final float probabilidadItem;
+	private final float probabilidadCura;    // asteroide verde: mucho mas raro que el dorado
+	private final float intervaloLaser;      // jefe: segundos entre ataques
+	private final float velocidadLaser;      // jefe: px/s
 
 	Dificultad(String nombre, float escalaMin, float escalaMax, float velocidadBase,
-			float incrementoVelocidad, int maxAsteroides, float intervaloSpawn) {
+			float incrementoVelocidad, int maxAsteroides, float intervaloSpawn, int maxBalas,
+			float escalaGrande, float probabilidadItem, float probabilidadCura, float intervaloLaser, float velocidadLaser) {
 		this.nombre = nombre;
 		this.escalaMin = escalaMin;
 		this.escalaMax = escalaMax;
@@ -27,6 +34,12 @@ public enum Dificultad {
 		this.incrementoVelocidad = incrementoVelocidad;
 		this.maxAsteroides = maxAsteroides;
 		this.intervaloSpawn = intervaloSpawn;
+		this.maxBalas = maxBalas;
+		this.escalaGrande = escalaGrande;
+		this.probabilidadItem = probabilidadItem;
+		this.probabilidadCura = probabilidadCura;
+		this.intervaloLaser = intervaloLaser;
+		this.velocidadLaser = velocidadLaser;
 	}
 
 	/** Multiplicador de velocidad segun el tiempo jugado (acotado). */
@@ -34,8 +47,24 @@ public enum Dificultad {
 		return Math.min(1f + incrementoVelocidad * tiempo, FACTOR_MAXIMO);
 	}
 
+	/** Cantidad maxima de asteroides: crece +1 cada 40 s (hasta +6). */
+	public int maxAsteroidesEn(float tiempo) {
+		return maxAsteroides + Math.min(6, (int) (tiempo / 40f));
+	}
+
 	public float escalaAleatoria() {
 		return MathUtils.random(escalaMin, escalaMax);
+	}
+
+	public boolean esGrande(float escala) {
+		return escala >= escalaGrande;
+	}
+
+	/** Elige el tipo de un asteroide nuevo. El verde solo sale si la nave puede curarse. */
+	public TipoAsteroide tipoAleatorio(float escala, boolean puedeCurar) {
+		if (esGrande(escala) && MathUtils.randomBoolean(probabilidadItem)) return TipoAsteroide.DORADO;
+		if (puedeCurar && MathUtils.randomBoolean(probabilidadCura)) return TipoAsteroide.VERDE;
+		return TipoAsteroide.COMUN;
 	}
 
 	public Dificultad siguiente() {
@@ -46,4 +75,9 @@ public enum Dificultad {
 	public float getVelocidadBase() { return velocidadBase; }
 	public int getMaxAsteroides() { return maxAsteroides; }
 	public float getIntervaloSpawn() { return intervaloSpawn; }
+	public int getMaxBalas() { return maxBalas; }
+	public float getProbabilidadItem() { return probabilidadItem; }
+	public float getProbabilidadCura() { return probabilidadCura; }
+	public float getIntervaloLaser() { return intervaloLaser; }
+	public float getVelocidadLaser() { return velocidadLaser; }
 }

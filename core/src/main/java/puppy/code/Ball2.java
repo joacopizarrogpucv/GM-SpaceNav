@@ -16,6 +16,7 @@ public class Ball2 {
 	private float factorVelocidad = 1f;
 	private float enfriamiento = 0f;                  // evita choques repetidos entre los mismos asteroides
 	private float angulo = 0f;
+	private final TipoAsteroide tipo;                  // comun, dorado (item) o verde (cura)
 
 	/** Solo se crea a traves de AsteroideBuilder. */
 	Ball2(AsteroideBuilder b) {
@@ -26,6 +27,8 @@ public class Ball2 {
 		posicion.set(b.getX(), b.getY());
 		velocidad.set(b.getVx(), b.getVy());
 		estrategia = b.getEstrategia();
+		tipo = b.getTipo();
+		spr.setColor(tipo.getR(), tipo.getG(), tipo.getB(), 1f);   // dorado / verde / sin tono
 		spr.setPosition(posicion.x, posicion.y);
 	}
 
@@ -98,6 +101,7 @@ public class Ball2 {
 	// ---- getters / setters ----
 	public float getCentroX() { return posicion.x + tamano / 2f; }
 	public float getCentroY() { return posicion.y + tamano / 2f; }
+	public TipoAsteroide getTipo() { return tipo; }
 	public float getRadio() { return tamano / 2f * 0.9f; }
 	public void setEstrategia(EstrategiaMovimiento e) { this.estrategia = e; }
 	public void setFactorVelocidad(float f) { this.factorVelocidad = f; }
