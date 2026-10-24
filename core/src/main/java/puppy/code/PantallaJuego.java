@@ -88,7 +88,7 @@ public class PantallaJuego extends PantallaBase {
 		explosionSound.setVolume(1, 0.5f);
 		soundBala = Gdx.audio.newSound(Gdx.files.internal("pop-sound.mp3"));
 		hurtSound = Gdx.audio.newSound(Gdx.files.internal("hurt.ogg"));
-		gameMusic = Gdx.audio.newMusic(Gdx.files.internal("piano-loops.wav"));
+		gameMusic = Gdx.audio.newMusic(Gdx.files.internal("piano-loops.ogg"));
 		gameMusic.setLooping(true);
 		gameMusic.setVolume(0.5f);
 		if (Gdx.files.internal(ARCHIVO_MUSICA_JEFE).exists()) {

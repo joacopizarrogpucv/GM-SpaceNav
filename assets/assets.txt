@@ -5,6 +5,6 @@ explosion.ogg
 hurt.ogg
 libgdx.png
 MainShip3.png
-piano-loops.wav
+piano-loops.ogg
 pop-sound.mp3
 Rocket2.png
