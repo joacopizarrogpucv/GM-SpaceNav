@@ -30,6 +30,8 @@ public class JefeEstrella extends Planeta {
 	private float tiempoCombate = 0f;
 	private float temporizadorAtaque = 0f;
 	private int ataques = 0;
+	private float reloj = 0f;
+	private float destello = 0f;   // flash blanco breve al recibir un impacto
 
 	public JefeEstrella(int nivel, Dificultad dificultad) {
 		super(Constantes.ANCHO / 2f, Constantes.ALTO + RADIO + 20f, RADIO, 260f, 180f);
@@ -44,6 +46,8 @@ public class JefeEstrella extends Planeta {
 	/** Mueve al jefe y devuelve los lasers disparados en este cuadro (lista vacia casi siempre). */
 	public ArrayList<LaserJefe> actualizar(float delta, float objetivoX, float objetivoY) {
 		ArrayList<LaserJefe> nuevos = new ArrayList<>();
+		reloj += delta;
+		if (destello > 0) destello -= delta;
 
 		if (entrando) {
 			setPosicion(getX(), getY() - VELOCIDAD_ENTRADA * delta);
@@ -54,9 +58,17 @@ public class JefeEstrella extends Planeta {
 			return nuevos;
 		}
 
+		// Movimiento segun el nivel: nivel 1 quieto; desde el 2 se desplaza de lado a lado,
+		// cada vez mas rapido; desde el 3 tambien sube y baja.
 		tiempoCombate += delta;
-		setPosicion(Constantes.ANCHO / 2f + MathUtils.sin(tiempoCombate * 0.5f) * 320f,
-				Y_OBJETIVO + MathUtils.sin(tiempoCombate * 0.9f) * 20f);
+		float amplitudX = 0f, frecuencia = 0.35f, amplitudY = 0f;
+		if (nivel >= 2) {
+			amplitudX = Math.min(180f + 45f * (nivel - 2), 340f);
+			frecuencia = Math.min(0.35f + 0.08f * (nivel - 2), 0.9f);
+		}
+		if (nivel >= 3) amplitudY = Math.min(30f + 25f * (nivel - 3), 110f);
+		setPosicion(Constantes.ANCHO / 2f + MathUtils.sin(tiempoCombate * frecuencia) * amplitudX,
+				Y_OBJETIVO + MathUtils.sin(tiempoCombate * (frecuencia + 0.4f)) * amplitudY);
 
 		temporizadorAtaque += delta;
 		if (temporizadorAtaque >= intervaloLaser) {
@@ -67,20 +79,31 @@ public class JefeEstrella extends Planeta {
 		return nuevos;
 	}
 
+	/**
+	 * Patrones de ataque (cada nivel agrega mas): rafaga apuntada a la nave, abanico hacia abajo
+	 * y, desde el nivel 4, un anillo de rayos en todas direcciones cada 5 ataques.
+	 */
 	private void disparar(ArrayList<LaserJefe> lista, float objetivoX, float objetivoY) {
 		float ox = getX() - getRadio() * 0.35f;   // sale desde el "superlaser"
 		float oy = getY() + getRadio() * 0.4f;
 
-		if (ataques % 3 == 0) {
-			// abanico de 9 rayos hacia abajo
-			for (int i = 0; i < 9; i++) {
-				lista.add(new LaserJefe(ox, oy, -90f + (i - 4) * 16f, velocidadLaser));
+		if (nivel >= 4 && ataques % 5 == 0) {
+			int n = 12 + 2 * Math.min(nivel - 4, 3);
+			float desfase = MathUtils.random(0f, 360f / n);
+			for (int i = 0; i < n; i++) {
+				lista.add(new LaserJefe(ox, oy, desfase + i * 360f / n, velocidadLaser * 0.85f));
+			}
+		} else if (ataques % 3 == 0) {
+			int rayos = 9 + (nivel >= 3 ? 2 : 0) + (nivel >= 5 ? 2 : 0);
+			float paso = 128f / (rayos - 1);
+			for (int i = 0; i < rayos; i++) {
+				lista.add(new LaserJefe(ox, oy, -154f + i * paso, velocidadLaser));
 			}
 		} else {
-			// rafaga de 3 rayos apuntados a la nave
+			int cantidad = 3 + (nivel >= 3 ? 2 : 0);
 			float base = MathUtils.atan2(objetivoY - oy, objetivoX - ox) * MathUtils.radiansToDegrees;
-			for (int i = -1; i <= 1; i++) {
-				lista.add(new LaserJefe(ox, oy, base + i * 10f, velocidadLaser));
+			for (int i = 0; i < cantidad; i++) {
+				lista.add(new LaserJefe(ox, oy, base + (i - (cantidad - 1) / 2f) * 10f, velocidadLaser));
 			}
 		}
 	}
@@ -88,6 +111,7 @@ public class JefeEstrella extends Planeta {
 	/** Devuelve true si el jefe fue derrotado con este dano. */
 	public boolean recibirDano(int dano) {
 		vida = Math.max(0, vida - dano);
+		destello = 0.12f;
 		return vida == 0;
 	}
 
@@ -99,11 +123,13 @@ public class JefeEstrella extends Planeta {
 	public int getVidaMax() { return vidaMax; }
 	public int getPuntaje() { return puntaje; }
 
-	/** Dibuja la Estrella de la Muerte con formas simples. */
+	private static final float[] ANG_GRIETA = { 200f, 320f, 250f, 30f, 290f, 160f };
+
+	/** Dibuja la Estrella de la Muerte con formas simples (luces, ventanas, grietas por dano). */
 	@Override
 	public void dibujar(ShapeRenderer shape) {
-		dibujarZona(shape);
 		float x = getX(), y = getY(), r = getRadio();
+		float carga = getCarga();
 
 		shape.begin(ShapeType.Filled);
 		// esfera base y sombreado
@@ -111,27 +137,80 @@ public class JefeEstrella extends Planeta {
 		shape.circle(x, y, r, 64);
 		shape.setColor(1f, 1f, 1f, 0.10f);
 		shape.circle(x - r * 0.25f, y + r * 0.25f, r * 0.5f, 40);
-		shape.setColor(0f, 0f, 0f, 0.20f);
-		shape.circle(x + r * 0.3f, y - r * 0.3f, r * 0.55f, 40);
+		shape.setColor(0f, 0f, 0f, 0.22f);
+		shape.circle(x + r * 0.3f, y - r * 0.3f, r * 0.58f, 40);
 
-		// trinchera ecuatorial y lineas de detalle
+		// ventanas encendidas en el hemisferio sur
+		for (int gx = -7; gx <= 7; gx++) {
+			for (int gy = -8; gy <= -1; gy++) {
+				if (((gx * 7 + gy * 13) & 7) != 0) continue;
+				float wx = x + gx * r * 0.105f, wy = y + gy * r * 0.095f;
+				float dx = wx - x, dy = wy - y;
+				if (dx * dx + dy * dy > r * r * 0.72f) continue;
+				float luz = 0.45f + 0.45f * MathUtils.sin(reloj * 2.5f + gx * 1.7f + gy);
+				shape.setColor(1f, 0.92f, 0.6f, luz);
+				shape.rect(wx - 2.5f, wy - 1.5f, 5f, 3f);
+			}
+		}
+
+		// trinchera ecuatorial, lineas de detalle y luces de la trinchera
 		shape.setColor(0.18f, 0.19f, 0.22f, 1f);
 		shape.rectLine(x - r * 0.985f, y, x + r * 0.985f, y, r * 0.07f);
 		lineaDetalle(shape, x, y, r, 0.22f);
 		lineaDetalle(shape, x, y, r, -0.22f);
 		lineaDetalle(shape, x, y, r, 0.55f);
 		lineaDetalle(shape, x, y, r, -0.55f);
+		for (int i = 0; i < 26; i++) {
+			float lx = x - r * 0.93f + i * (r * 1.86f / 25f);
+			float luz = 0.35f + 0.55f * MathUtils.sin(reloj * 3f + i * 1.3f);
+			shape.setColor(1f, 0.95f, 0.7f, Math.max(0.1f, luz));
+			shape.circle(lx, y, 1.8f, 6);
+		}
 
 		// plato del superlaser
 		float dx = x - r * 0.35f;
 		float dy = y + r * 0.4f;
 		shape.setColor(0.35f, 0.36f, 0.40f, 1f);
 		shape.circle(dx, dy, r * 0.28f, 32);
-		shape.setColor(0.20f, 0.21f, 0.24f, 1f);
-		shape.circle(dx, dy, r * 0.20f, 32);
-		float carga = getCarga();
+		shape.setColor(0.27f, 0.28f, 0.32f, 1f);
+		shape.circle(dx, dy, r * 0.23f, 32);
+		shape.setColor(0.17f, 0.18f, 0.21f, 1f);
+		shape.circle(dx, dy, r * 0.17f, 32);
+		if (carga > 0.4f) {                        // anillo de carga que se expande
+			float k = (carga - 0.4f) / 0.6f;
+			shape.setColor(1f, 0.15f, 0.1f, 0.18f * k);
+			shape.circle(dx, dy, r * 0.28f * (1f + 0.7f * k), 32);
+		}
 		shape.setColor(1f, 0.1f, 0.1f, 0.3f + 0.7f * carga);   // brilla rojo al cargar el disparo
 		shape.circle(dx, dy, r * 0.06f + r * 0.05f * carga, 20);
+		shape.setColor(1f, 0.8f, 0.8f, carga);
+		shape.circle(dx, dy, r * 0.025f * carga + 1f, 12);
+
+		// grietas incandescentes segun el dano recibido
+		float danio = 1f - vida / (float) vidaMax;
+		int grietas = (int) (danio * 6f + 0.0001f);
+		for (int k = 0; k < grietas && k < ANG_GRIETA.length; k++) {
+			float prevX = x + MathUtils.cosDeg(ANG_GRIETA[k]) * r * 0.3f;
+			float prevY = y + MathUtils.sinDeg(ANG_GRIETA[k]) * r * 0.3f;
+			for (int p = 1; p <= 5; p++) {
+				float f = 0.3f + p * 0.13f;
+				float a = ANG_GRIETA[k] + 9f * MathUtils.sin(f * 9f + k);
+				float nx = x + MathUtils.cosDeg(a) * r * f;
+				float ny = y + MathUtils.sinDeg(a) * r * f;
+				shape.setColor(1f, 0.25f, 0f, 0.35f);
+				shape.rectLine(prevX, prevY, nx, ny, 7f);
+				shape.setColor(1f, 0.7f, 0.2f, 1f);
+				shape.rectLine(prevX, prevY, nx, ny, 2.5f);
+				prevX = nx;
+				prevY = ny;
+			}
+		}
+
+		// destello al recibir un impacto
+		if (destello > 0) {
+			shape.setColor(1f, 1f, 1f, 0.35f * (destello / 0.12f));
+			shape.circle(x, y, r, 64);
+		}
 		shape.end();
 
 		shape.begin(ShapeType.Line);

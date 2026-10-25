@@ -7,7 +7,6 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -23,7 +22,7 @@ public class PantallaJuego extends PantallaBase {
 	private static final int DANO_BALA = 50;                 // dano de cada bala al jefe
 	private static final float INTERVALO_ITEM_JEFE = 15f;    // el jefe "suelta" un item cada X segundos
 	private static final float DURACION_MULTIPLICADOR = 30f; // el efecto x2 dura como maximo 30 s
-	private static final String ARCHIVO_MUSICA_JEFE = "boss-theme.wav";  // cambiar por tu propio archivo si quieres
+	private static final String ARCHIVO_MUSICA_JEFE = "jefe-musica.ogg";  // cambiar por tu propio archivo si quieres
 
 	private final ConfiguracionJuego config = ConfiguracionJuego.getInstancia();
 	private final Dificultad dificultad = config.getDificultad();
@@ -38,7 +37,7 @@ public class PantallaJuego extends PantallaBase {
 	private final Texture txAsteroide;
 	private final Texture txNave;
 	private final Texture txBala;
-	private final ShapeRenderer shape = new ShapeRenderer();
+	private final ShapeRenderer shape;   // compartido, lo crea y libera SpaceNavigation
 
 	// estado de la partida
 	private int score = 0;
@@ -59,6 +58,9 @@ public class PantallaJuego extends PantallaBase {
 	private final ArrayList<ItemMultiplicador> multiplicadores = new ArrayList<>();
 	private float multiplicadorRestante = 0f;   // > 0 mientras el puntaje vale x2
 	private final ArrayList<LaserJefe> lasers = new ArrayList<>();
+	private final ArrayList<Lava> lavas = new ArrayList<>();   // lava del planeta errante
+	private int jefesDerrotados = 0;
+	private int asteroidesDestruidos = 0;
 
 	// jefe y cometa (nunca coexisten)
 	private JefeEstrella jefe = null;
@@ -83,6 +85,7 @@ public class PantallaJuego extends PantallaBase {
 	public PantallaJuego(SpaceNavigation game) {
 		super(game);
 		batch = game.getBatch();
+		shape = game.getShape();
 
 		explosionSound = Gdx.audio.newSound(Gdx.files.internal("explosion.ogg"));
 		explosionSound.setVolume(1, 0.5f);
@@ -178,6 +181,7 @@ public class PantallaJuego extends PantallaBase {
 	protected void actualizar(float delta) {
 		if (pausado) return;
 		delta = Math.min(delta, 0.05f); // evita saltos si hay un tiron de FPS
+		game.getFondo().update(delta);
 
 		tiempo += delta;
 		if (mensajeTimer > 0) mensajeTimer -= delta;
@@ -191,6 +195,7 @@ public class PantallaJuego extends PantallaBase {
 
 		actualizarSpawnAsteroides(delta);
 		actualizarPlanetaErrante(delta);
+		actualizarLavas(delta);
 		actualizarBalas(delta);
 		actualizarAsteroides(delta);
 		actualizarItems(delta);
@@ -209,10 +214,15 @@ public class PantallaJuego extends PantallaBase {
 			LaserJefe l = lasers.get(i);
 			if (nave.checkCollision(l.getX(), l.getY(), 4f)) lasers.remove(i);
 		}
+		for (int i = lavas.size() - 1; i >= 0; i--) {
+			Lava lv = lavas.get(i);
+			if (nave.checkCollision(lv.getX(), lv.getY(), lv.getRadio())) lavas.remove(i);
+		}
 
 		if (nave.estaDestruido()) {
+			boolean esRecord = score > config.getHighScore();
 			config.registrarPuntaje(score);
-			cambiarA(new PantallaGameOver(game, score));
+			cambiarA(new PantallaGameOver(game, score, esRecord, tiempo, jefesDerrotados, asteroidesDestruidos));
 		}
 	}
 
@@ -221,7 +231,7 @@ public class PantallaJuego extends PantallaBase {
 		int tope = dificultad.maxAsteroidesEn(tiempo);
 		if (jefe != null) {            // durante el jefe aparecen muy pocos
 			intervalo *= 3.5f;
-			tope = 3;
+			tope = 3 + Math.min(3, jefe.getNivel() - 1);   // mas asteroides en niveles altos del jefe
 		}
 		acumuladorSpawn += delta;
 		if (acumuladorSpawn >= intervalo) {
@@ -264,6 +274,10 @@ public class PantallaJuego extends PantallaBase {
 				a.setEstrategia(movGravedadPlaneta);
 			else a.setEstrategia(movRecto);
 			a.update(delta);
+		}
+		// los asteroides dorados y verdes desaparecen si no se cazan a tiempo
+		for (int i = asteroides.size() - 1; i >= 0; i--) {
+			if (asteroides.get(i).isExpirado()) asteroides.remove(i);
 		}
 		for (int i = 0; i < asteroides.size(); i++) {
 			for (int j = i + 1; j < asteroides.size(); j++) {
@@ -356,7 +370,7 @@ public class PantallaJuego extends PantallaBase {
 		planetaErrante = new PlanetaErrante(MathUtils.randomBoolean(),
 				MathUtils.random(190f, Constantes.ALTO - 190f));
 		movGravedadPlaneta = new MovimientoGravitatorio(planetaErrante);
-		mostrarMensaje("PLANETA ERRANTE! EVITA SU CAMPO", 2f);
+		mostrarMensaje("PLANETA ERRANTE! CUIDADO CON LA LAVA", 2f);
 	}
 
 	private void actualizarPlanetaErrante(float delta) {
@@ -365,7 +379,7 @@ public class PantallaJuego extends PantallaBase {
 					&& proximoJefe - tiempo > 12f) iniciarPlanetaErrante();
 			return;
 		}
-		planetaErrante.actualizar(delta);
+		lavas.addAll(planetaErrante.actualizar(delta, nave.getCentroX(), nave.getCentroY()));
 		if (planetaErrante.haSalido()) {
 			planetaErrante = null;
 			movGravedadPlaneta = null;
@@ -373,8 +387,26 @@ public class PantallaJuego extends PantallaBase {
 		}
 	}
 
+	/** La lava destruye asteroides al tocarlos (y se consume); a la nave la dana en actualizar(). */
+	private void actualizarLavas(float delta) {
+		for (int i = lavas.size() - 1; i >= 0; i--) {
+			Lava l = lavas.get(i);
+			l.update(delta);
+			if (l.isExpirada()) { lavas.remove(i); continue; }
+			for (int j = asteroides.size() - 1; j >= 0; j--) {
+				Ball2 a = asteroides.get(j);
+				if (l.choca(a.getCentroX(), a.getCentroY(), a.getRadio())) {
+					destruirAsteroide(j, false);
+					lavas.remove(i);
+					break;
+				}
+			}
+		}
+	}
+
 	private void iniciarJefe() {
 		// Un minijefe termina su visita si llega el jefe principal.
+		lavas.clear();
 		planetaErrante = null;
 		movGravedadPlaneta = null;
 		proximoPlaneta = tiempo + MathUtils.random(40f, 65f);
@@ -387,10 +419,12 @@ public class PantallaJuego extends PantallaBase {
 		acumuladorItemJefe = 0f;
 		acumuladorSpawn = 0f;
 		cambiarMusica(bossMusic);
-		mostrarMensaje("DERROTA AL JEFE", "QUE LA FUERZA TE ACOMPANE", 4f);
+		mostrarMensaje(jefesAparecidos > 1 ? "DERROTA AL JEFE  -  NIVEL " + jefesAparecidos : "DERROTA AL JEFE",
+				"QUE LA FUERZA TE ACOMPANE", 4f);
 	}
 
 	private void derrotarJefe() {
+		jefesDerrotados++;
 		sumarPuntos(jefe.getPuntaje());
 		explosionSound.play();
 		items.add(new ItemRecarga(jefe.getX(), jefe.getY() - 60f, txBala));
@@ -410,6 +444,7 @@ public class PantallaJuego extends PantallaBase {
 	private void destruirAsteroide(int indice, boolean porJugador) {
 		Ball2 a = asteroides.remove(indice);
 		explosionSound.play();
+		if (porJugador) asteroidesDestruidos++;
 		if (a.getTipo() == TipoAsteroide.DORADO) {
 			items.add(new ItemRecarga(a.getCentroX(), a.getCentroY(), txBala));
 		} else if (a.getTipo() == TipoAsteroide.VERDE && porJugador) {
@@ -443,131 +478,210 @@ public class PantallaJuego extends PantallaBase {
 
 	// ------------------------------------------------------------------ dibujo
 	private void activarBlend() {
-		Gdx.gl.glEnable(GL20.GL_BLEND);
-		Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-		shape.setProjectionMatrix(camera.combined);
+		prepararShape();
 	}
 
 	@Override
 	protected void dibujar() {
-		// capa de fondo: jefe, aviso del cometa, glow de items, barras
+		// 1) fondo y cuerpos celestes
 		activarBlend();
+		game.getFondo().dibujar(shape);
 		if (jefe != null) jefe.dibujar(shape);
 		if (planetaErrante != null) planetaErrante.dibujar(shape);
 		shape.begin(ShapeType.Filled);
 		if (cometa != null && cometa.enAviso()) cometa.dibujarAviso(shape);
 		for (ItemRecarga it : items) it.dibujarFondo(shape);
 		for (ItemMultiplicador m : multiplicadores) m.dibujarFondo(shape);
-		dibujaBarraMunicion();
-		if (jefe != null) dibujaBarraJefe();
 		shape.end();
 
-		// sprites y texto
+		// 2) sprites del juego
 		batch.begin();
 		for (ItemRecarga it : items) it.dibujar(batch);
 		for (ItemMultiplicador m : multiplicadores) m.dibujarTexto(batch, game.getFont());
 		for (Bullet b : balas) b.draw(batch);
 		for (Ball2 a : asteroides) a.draw(batch);
 		nave.dibujar(batch);
-		dibujaEncabezado();
-		dibujaMensajes();
 		batch.end();
 
-		// capa frontal: lasers y cometa
+		// 3) efectos frontales y formas del HUD
 		activarBlend();
 		shape.begin(ShapeType.Filled);
 		for (LaserJefe l : lasers) l.dibujar(shape);
+		for (Lava l : lavas) l.dibujar(shape);
 		if (cometa != null && cometa.estaActivo()) cometa.dibujar(shape);
+		if (pausado) {
+			shape.setColor(0f, 0f, 0f, 0.5f);
+			shape.rect(0, 0, Constantes.ANCHO, Constantes.ALTO);
+		}
+		dibujaFormasHud();
 		shape.end();
+
+		// 4) textos
+		batch.begin();
+		dibujaTextosHud();
+		dibujaMensajes();
+		batch.end();
 	}
 
-	private void dibujaBarraMunicion() {
+	private void corazon(float cx, float cy, float s, float r, float g, float b, float a) {
+		shape.setColor(r, g, b, a);
+		shape.circle(cx - s * 0.5f, cy + s * 0.25f, s * 0.52f, 16);
+		shape.circle(cx + s * 0.5f, cy + s * 0.25f, s * 0.52f, 16);
+		shape.triangle(cx - s * 0.98f, cy + s * 0.12f, cx + s * 0.98f, cy + s * 0.12f, cx, cy - s * 0.98f);
+		if (a > 0.5f) {
+			shape.setColor(1f, 1f, 1f, 0.35f);
+			shape.circle(cx - s * 0.55f, cy + s * 0.4f, s * 0.15f, 8);
+		}
+	}
+
+	private void dibujaFormasHud() {
+		// vidas como corazones
+		for (int i = 0; i < Nave4.MAX_VIDAS; i++) {
+			float cx = 40f + i * 38f;
+			float cy = Constantes.ALTO - 32f;
+			if (i < nave.getVidas()) corazon(cx, cy, 13f, 0.95f, 0.15f, 0.25f, 1f);
+			else corazon(cx, cy, 13f, 1f, 1f, 1f, 0.12f);
+		}
+
+		// municion como cartuchos y barra de recarga
+		float bx = 24f, by = 22f;
 		for (int i = 0; i < municion.getMaximo(); i++) {
-			if (i < municion.getActual()) shape.setColor(0.2f, 0.9f, 1f, 1f);
-			else shape.setColor(1f, 1f, 1f, 0.15f);
-			shape.rect(20 + i * 22, 15, 14, 30);
+			boolean lista = i < municion.getActual();
+			if (lista) shape.setColor(0.2f, 0.9f, 1f, 1f); else shape.setColor(1f, 1f, 1f, 0.14f);
+			shape.rect(bx + i * 20f, by, 12f, 28f);
+			if (lista) {
+				shape.setColor(1f, 1f, 1f, 0.45f);
+				shape.rect(bx + i * 20f + 2f, by + 18f, 3f, 8f);
+			}
 		}
-	}
-
-	private void dibujaBarraJefe() {
-		float ancho = 500f;
-		float x = Constantes.ANCHO / 2f - ancho / 2f;
-		float y = Constantes.ALTO - 115f;
-		shape.setColor(0.2f, 0.2f, 0.2f, 0.9f);
-		shape.rect(x - 3, y - 3, ancho + 6, 22);
-		shape.setColor(0.9f, 0.1f, 0.1f, 1f);
-		shape.rect(x, y, ancho * jefe.getVida() / (float) jefe.getVidaMax(), 16);
-	}
-
-	private void dibujaEncabezado() {
-		BitmapFont f = game.getFont();
-		f.setColor(Color.WHITE);
-		f.getData().setScale(1.6f);
-		f.draw(batch, "Vidas: " + nave.getVidas(), 20, Constantes.ALTO - 15);
-		f.draw(batch, "HighScore: " + config.getHighScore(), 0, Constantes.ALTO - 15, Constantes.ANCHO, Align.center, false);
-		f.draw(batch, "Score: " + score, 0, Constantes.ALTO - 15, Constantes.ANCHO - 20, Align.right, false);
-
-		if (multiplicadorRestante > 0) {
-			f.getData().setScale(1.3f);
-			f.setColor(1f, 0.75f, 0.1f, 1f);
-			f.draw(batch, "PUNTAJE x2  " + (int) Math.ceil(multiplicadorRestante) + "s", 0, Constantes.ALTO - 50, Constantes.ANCHO - 20, Align.right, false);
-		}
-
-		f.getData().setScale(1.1f);
-		f.setColor(Color.LIGHT_GRAY);
-		f.draw(batch, "Dificultad: " + dificultad.getNombre()
-				+ "  |  Movimiento: " + modosNave[modoActual].getNombre() + " (TAB)"
-				+ "  |  Velocidad: x" + String.format("%.2f", factorVelocidad), 20, Constantes.ALTO - 50);
-
-		f.getData().setScale(1.2f);
-		f.setColor(Color.CYAN);
-		String balasTxt = "Balas: " + municion.getActual() + "/" + municion.getMaximo();
 		if (municion.getActual() < municion.getMaximo()) {
-			balasTxt += "   (+1 en " + String.format("%.1f", municion.getTiempoSiguiente()) + "s)";
+			float p = 1f - municion.getTiempoSiguiente() / Municion.TIEMPO_RECARGA;
+			float w = municion.getMaximo() * 20f - 8f;
+			shape.setColor(1f, 1f, 1f, 0.12f);
+			shape.rect(bx, by - 10f, w, 4f);
+			shape.setColor(0.2f, 0.9f, 1f, 0.9f);
+			shape.rect(bx, by - 10f, w * p, 4f);
 		}
-		f.draw(batch, balasTxt, 20, 80);
+
+		// barra del multiplicador x2
+		if (multiplicadorRestante > 0) {
+			float x = Constantes.ANCHO - 224f, y = Constantes.ALTO - 92f;
+			shape.setColor(1f, 1f, 1f, 0.12f);
+			shape.rect(x, y, 200f, 8f);
+			shape.setColor(1f, 0.75f, 0.1f, 1f);
+			shape.rect(x, y, 200f * multiplicadorRestante / DURACION_MULTIPLICADOR, 8f);
+		}
+
+		// barra de vida del jefe
+		if (jefe != null) {
+			float ancho = 520f;
+			float x = Constantes.ANCHO / 2f - ancho / 2f;
+			float y = Constantes.ALTO - 112f;
+			float p = jefe.getVida() / (float) jefe.getVidaMax();
+			shape.setColor(0f, 0f, 0f, 0.6f);
+			shape.rect(x - 4f, y - 4f, ancho + 8f, 26f);
+			shape.setColor(0.35f, 0.05f, 0.05f, 1f);
+			shape.rect(x, y, ancho, 18f);
+			float pulso = (p < 0.25f) ? 0.75f + 0.25f * MathUtils.sin(tiempo * 10f) : 1f;
+			shape.setColor(0.9f * pulso, 0.12f, 0.12f, 1f);
+			shape.rect(x, y, ancho * p, 18f);
+			shape.setColor(1f, 0.5f, 0.5f, 0.35f);
+			shape.rect(x, y + 10f, ancho * p, 6f);
+			shape.setColor(0f, 0f, 0f, 0.5f);
+			for (int q = 1; q <= 3; q++) shape.rect(x + ancho * q / 4f - 1f, y, 2f, 18f);
+		}
+
+		// bandas detras de los mensajes grandes
+		if (mensajeTimer > 0) {
+			shape.setColor(0f, 0f, 0f, Math.min(1f, mensajeTimer) * 0.35f);
+			if (mensaje2.isEmpty()) shape.rect(0, 362f, Constantes.ANCHO, 52f);
+			else shape.rect(0, 312f, Constantes.ANCHO, 110f);
+		}
+		if (cometa != null && cometa.enAviso()) {
+			shape.setColor(0.3f, 0.05f, 0f, 0.4f);
+			shape.rect(0, 304f, Constantes.ANCHO, 44f);
+		}
+	}
+
+	private void dibujaTextosHud() {
+		BitmapFont f = game.getFont();
+
+		// puntaje (arriba a la derecha)
+		f.getData().setScale(0.9f);
+		f.setColor(0.7f, 0.8f, 1f, 1f);
+		Texto.sombra(batch, f, "PUNTAJE", 0, Constantes.ALTO - 12f, Constantes.ANCHO - 24f, Align.right);
+		f.getData().setScale(2.2f);
+		f.setColor(Color.WHITE);
+		Texto.sombra(batch, f, String.valueOf(score), 0, Constantes.ALTO - 28f, Constantes.ANCHO - 24f, Align.right);
+		if (multiplicadorRestante > 0) {
+			f.getData().setScale(1.1f);
+			f.setColor(1f, 0.75f, 0.1f, 1f);
+			Texto.sombra(batch, f, "x2   " + (int) Math.ceil(multiplicadorRestante) + "s",
+					0, Constantes.ALTO - 66f, Constantes.ANCHO - 24f, Align.right);
+		}
+
+		// record (centro)
+		f.getData().setScale(1.1f);
+		f.setColor(1f, 0.85f, 0.3f, 1f);
+		Texto.sombra(batch, f, "RECORD  " + config.getHighScore(), 0, Constantes.ALTO - 16f, Constantes.ANCHO, Align.center);
+
+		// informacion de la partida (bajo los corazones)
+		f.getData().setScale(1f);
+		f.setColor(Color.LIGHT_GRAY);
+		Texto.sombra(batch, f, dificultad.getNombre() + "  |  " + modosNave[modoActual].getNombre()
+				+ " (TAB)  |  Vel x" + String.format("%.2f", factorVelocidad), 24f, Constantes.ALTO - 62f, 0, Align.left);
+
+		// municion
+		f.setColor(Color.CYAN);
+		String balasTxt = "BALAS  " + municion.getActual() + "/" + municion.getMaximo();
+		if (municion.getActual() < municion.getMaximo()) {
+			balasTxt += "    +1 en " + String.format("%.1f", municion.getTiempoSiguiente()) + "s";
+		}
+		Texto.sombra(batch, f, balasTxt, 24f, 80f, 0, Align.left);
 
 		if (planetaErrante != null) {
-			f.getData().setScale(1.3f);
-			f.setColor(Color.GOLD);
-			f.draw(batch, "PLANETA ERRANTE: ESQUIVA Y DISPARA CON CUIDADO", 0,
-					Constantes.ALTO - 90, Constantes.ANCHO, Align.center, false);
+			f.getData().setScale(1.2f);
+			f.setColor(1f, 0.6f, 0.2f, 1f);
+			Texto.sombra(batch, f, "PLANETA ERRANTE: CUIDADO CON LA LAVA", 0, Constantes.ALTO - 90f, Constantes.ANCHO, Align.center);
 		}
 
 		if (jefe != null) {
-			f.getData().setScale(1.2f);
+			f.getData().setScale(1.1f);
 			f.setColor(Color.WHITE);
-			f.draw(batch, "ESTRELLA DE LA MUERTE  Nv." + jefe.getNivel() + "   "
-					+ jefe.getVida() + " / " + jefe.getVidaMax(),
-					0, Constantes.ALTO - 80, Constantes.ANCHO, Align.center, false);
+			Texto.sombra(batch, f, "ESTRELLA DE LA MUERTE   Nv." + jefe.getNivel(),
+					0, Constantes.ALTO - 72f, Constantes.ANCHO, Align.center);
+			f.getData().setScale(0.95f);
+			Texto.sombra(batch, f, jefe.getVida() + " / " + jefe.getVidaMax(),
+					0, Constantes.ALTO - 96f, Constantes.ANCHO, Align.center);
 		}
 		f.setColor(Color.WHITE);
 	}
 
 	private void dibujaMensajes() {
 		BitmapFont f = game.getFont();
-		f.getData().setScale(1.8f);
 		if (mensajeTimer > 0) {
-			f.setColor(1f, 0.9f, 0.2f, Math.min(1f, mensajeTimer));
-			f.draw(batch, mensaje, 0, 400, Constantes.ANCHO, Align.center, false);
+			float a = Math.min(1f, mensajeTimer);
+			f.getData().setScale(1.8f);
+			f.setColor(1f, 0.9f, 0.2f, a);
+			Texto.sombra(batch, f, mensaje, 0, 400f, Constantes.ANCHO, Align.center);
 			if (!mensaje2.isEmpty()) {
 				f.getData().setScale(1.4f);
-				f.setColor(0.6f, 0.9f, 1f, Math.min(1f, mensajeTimer));
-				f.draw(batch, mensaje2, 0, 340, Constantes.ANCHO, Align.center, false);
-				f.getData().setScale(1.8f);
+				f.setColor(0.6f, 0.9f, 1f, a);
+				Texto.sombra(batch, f, mensaje2, 0, 340f, Constantes.ANCHO, Align.center);
 			}
 		}
 		if (cometa != null && cometa.enAviso()) {
-			f.setColor(1f, 0.35f, 0.15f, 1f);
-			f.draw(batch, "AHI VIENE EL COMETA!", 0, 340, Constantes.ANCHO, Align.center, false);
+			f.getData().setScale(1.8f);
+			f.setColor(cometa.getR(), cometa.getG(), cometa.getB(), 1f);
+			Texto.sombra(batch, f, "AHI VIENE EL COMETA!", 0, 340f, Constantes.ANCHO, Align.center);
 		}
 		if (pausado) {
 			f.getData().setScale(3f);
 			f.setColor(Color.YELLOW);
-			f.draw(batch, "PAUSA", 0, 460, Constantes.ANCHO, Align.center, false);
+			Texto.sombra(batch, f, "PAUSA", 0, 460f, Constantes.ANCHO, Align.center);
 			f.getData().setScale(1.6f);
 			f.setColor(Color.WHITE);
-			f.draw(batch, "P / ESC: continuar   |   M: menu principal", 0, 380, Constantes.ANCHO, Align.center, false);
+			Texto.sombra(batch, f, "P / ESC: continuar   |   M: menu principal", 0, 380f, Constantes.ANCHO, Align.center);
 		}
 		f.setColor(Color.WHITE);
 	}
@@ -587,6 +701,5 @@ public class PantallaJuego extends PantallaBase {
 		txAsteroide.dispose();
 		txNave.dispose();
 		txBala.dispose();
-		shape.dispose();
 	}
 }

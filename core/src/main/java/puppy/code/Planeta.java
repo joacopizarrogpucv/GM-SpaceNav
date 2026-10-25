@@ -3,7 +3,10 @@ package puppy.code;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 
-/** Cuerpo celeste con zona de influencia gravitatoria. El jefe hereda de esta clase. */
+/**
+ * Cuerpo celeste con zona de influencia gravitatoria. La zona afecta a los asteroides pero
+ * no se dibuja. El jefe y el planeta errante heredan de esta clase.
+ */
 public class Planeta {
 	private float x, y;
 	private final float radio, radioZona, gravedad;
@@ -18,19 +21,8 @@ public class Planeta {
 		return dx * dx + dy * dy < radioZona * radioZona;
 	}
 
-	public void dibujarZona(ShapeRenderer shape) {
-		shape.begin(ShapeType.Filled);
-		shape.setColor(0.3f, 0.5f, 1f, 0.08f);
-		shape.circle(x, y, radioZona, 60);
-		shape.end();
-		shape.begin(ShapeType.Line);
-		shape.setColor(0.3f, 0.6f, 1f, 0.35f);
-		shape.circle(x, y, radioZona, 60);
-		shape.end();
-	}
-
+	/** Dibujo basico (las subclases lo sobrescriben con su propio diseno). */
 	public void dibujar(ShapeRenderer shape) {
-		dibujarZona(shape);
 		shape.begin(ShapeType.Filled);
 		shape.setColor(0.85f, 0.45f, 0.2f, 1f);
 		shape.circle(x, y, radio, 40);

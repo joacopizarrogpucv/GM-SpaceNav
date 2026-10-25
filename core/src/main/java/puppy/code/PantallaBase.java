@@ -1,6 +1,8 @@
 package puppy.code;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
@@ -33,7 +35,7 @@ public abstract class PantallaBase implements Screen {
 		procesarEntrada();
 		if (!terminada) actualizar(delta);
 		if (terminada) return;               // la pantalla ya fue reemplazada
-		ScreenUtils.clear(0, 0, 0.08f, 1);
+		ScreenUtils.clear(0.01f, 0.01f, 0.06f, 1);
 		camera.update();
 		game.getBatch().setProjectionMatrix(camera.combined);
 		dibujar();
@@ -43,6 +45,13 @@ public abstract class PantallaBase implements Screen {
 	protected abstract void procesarEntrada();
 	protected abstract void actualizar(float delta);
 	protected abstract void dibujar();
+
+	/** Activa transparencias y asigna la camara al ShapeRenderer compartido (antes de dibujar formas). */
+	protected void prepararShape() {
+		Gdx.gl.glEnable(GL20.GL_BLEND);
+		Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+		game.getShape().setProjectionMatrix(camera.combined);
+	}
 
 	/** Cambia de pantalla y libera los recursos de la actual. */
 	protected void cambiarA(PantallaBase siguiente) {

@@ -17,6 +17,7 @@ public class Ball2 {
 	private float enfriamiento = 0f;                  // evita choques repetidos entre los mismos asteroides
 	private float angulo = 0f;
 	private final TipoAsteroide tipo;                  // comun, dorado (item) o verde (cura)
+	private float restante;                            // segundos que le quedan (solo dorado y verde)
 
 	/** Solo se crea a traves de AsteroideBuilder. */
 	Ball2(AsteroideBuilder b) {
@@ -28,12 +29,14 @@ public class Ball2 {
 		velocidad.set(b.getVx(), b.getVy());
 		estrategia = b.getEstrategia();
 		tipo = b.getTipo();
+		restante = tipo.getVidaUtil();
 		spr.setColor(tipo.getR(), tipo.getG(), tipo.getB(), 1f);   // dorado / verde / sin tono
 		spr.setPosition(posicion.x, posicion.y);
 	}
 
 	public void update(float delta) {
 		if (enfriamiento > 0) enfriamiento -= delta;
+		if (tipo.getVidaUtil() > 0) restante -= delta;
 		estrategia.mover(this, delta);
 		rebotarEnBordes();
 		angulo += 30f * delta;
@@ -87,7 +90,15 @@ public class Ball2 {
 		velocidad.set(nx, ny);
 	}
 
-	public void draw(SpriteBatch batch) { spr.draw(batch); }
+	/** Los asteroides especiales parpadean en sus ultimos 3 segundos antes de desaparecer. */
+	public void draw(SpriteBatch batch) {
+		boolean porDesaparecer = tipo.getVidaUtil() > 0 && restante < 3f;
+		spr.setAlpha(porDesaparecer ? 0.3f + 0.7f * Math.abs(MathUtils.sin(restante * 8f)) : 1f);
+		spr.draw(batch);
+	}
+
+	/** true cuando un asteroide dorado o verde ya agoto su tiempo y debe desaparecer. */
+	public boolean isExpirado() { return tipo.getVidaUtil() > 0 && restante <= 0; }
 
 	// ---- utilidades para las estrategias ----
 	public void sumarVelocidad(float ax, float ay) { velocidad.add(ax, ay); }
