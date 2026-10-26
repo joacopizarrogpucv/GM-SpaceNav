@@ -36,7 +36,7 @@ public class JefeEstrella extends Planeta {
 	public JefeEstrella(int nivel, Dificultad dificultad) {
 		super(Constantes.ANCHO / 2f, Constantes.ALTO + RADIO + 20f, RADIO, 260f, 180f);
 		this.nivel = nivel;
-		this.vidaMax = VIDA_BASE * nivel;
+		this.vidaMax = VIDA_BASE * dificultad.getMultiplicadorVidaJefe() * nivel;   // en Dificil la vida base se duplica
 		this.vida = vidaMax;
 		this.puntaje = PUNTAJE_BASE * nivel;
 		this.intervaloLaser = dificultad.getIntervaloLaser() * Math.max(0.6f, 1f - 0.05f * (nivel - 1));

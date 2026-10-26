@@ -42,7 +42,6 @@ public class PantallaJuego extends PantallaBase {
 	// estado de la partida
 	private int score = 0;
 	private float tiempo = 0f;
-	private float acumuladorScore = 0f;
 	private float acumuladorSpawn = 0f;
 	private float factorVelocidad = 1f;
 	private boolean pausado = false;
@@ -189,10 +188,7 @@ public class PantallaJuego extends PantallaBase {
 		factorVelocidad = dificultad.factorVelocidad(tiempo);
 		municion.actualizar(delta);
 
-		// puntaje por sobrevivir: +1 por segundo
-		acumuladorScore += delta;
-		if (acumuladorScore >= 1f) { acumuladorScore -= 1f; sumarPuntos(1); }
-
+		// el puntaje solo sube al destruir asteroides (+10) o derrotar al jefe, no por tiempo
 		actualizarSpawnAsteroides(delta);
 		actualizarPlanetaErrante(delta);
 		actualizarLavas(delta);
@@ -230,8 +226,8 @@ public class PantallaJuego extends PantallaBase {
 		float intervalo = dificultad.getIntervaloSpawn();
 		int tope = dificultad.maxAsteroidesEn(tiempo);
 		if (jefe != null) {            // durante el jefe aparecen muy pocos
-			intervalo *= 3.5f;
-			tope = 3 + Math.min(3, jefe.getNivel() - 1);   // mas asteroides en niveles altos del jefe
+			intervalo *= 2f;
+			tope = dificultad.maxAsteroidesJefe(jefe.getNivel());   // sube con el nivel del jefe
 		}
 		acumuladorSpawn += delta;
 		if (acumuladorSpawn >= intervalo) {
