@@ -6,7 +6,7 @@ import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
 
-/** Nave del jugador. La forma de moverla se delega en una EstrategiaMovimientoNave. */
+/** Nave del jugador. La forma de moverla se delega en una EstrategiaMovimiento<Nave4>. */
 public class Nave4 {
 
 	private static final float TAM = 45f;
@@ -23,9 +23,9 @@ public class Nave4 {
 	private final Sound sonidoHerido;
 	private boolean herido = false;
 	private float tiempoHerido;
-	private EstrategiaMovimientoNave estrategia;
+	private EstrategiaMovimiento<Nave4> estrategia;
 
-	public Nave4(float x, float y, Texture tx, Sound soundChoque, EstrategiaMovimientoNave estrategia) {
+	public Nave4(float x, float y, Texture tx, Sound soundChoque, EstrategiaMovimiento<Nave4> estrategia) {
 		this.sonidoHerido = soundChoque;
 		this.estrategia = estrategia;
 		spr = new Sprite(tx);
@@ -111,7 +111,7 @@ public class Nave4 {
 		sonidoHerido.play();
 	}
 
-	public void setEstrategia(EstrategiaMovimientoNave e) {
+	public void setEstrategia(EstrategiaMovimiento<Nave4> e) {
 		this.estrategia = e;
 		xVel = 0;
 		yVel = 0;

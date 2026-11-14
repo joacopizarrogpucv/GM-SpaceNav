@@ -1,7 +1,7 @@
 package puppy.code;
 
 /** Estrategia concreta: la trayectoria se curva hacia un planeta (mas fuerte mientras mas cerca). */
-public class MovimientoGravitatorio implements EstrategiaMovimiento {
+public class MovimientoGravitatorio implements EstrategiaMovimiento<Ball2> {
 
 	private static final float VELOCIDAD_MAXIMA = 320f;
 	private final Planeta planeta;

@@ -4,25 +4,21 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 
 /** Bola de lava lanzada por el planeta errante. Dana a la nave y destruye asteroides. */
-public class Lava {
+public class Lava extends Proyectil {
 
 	private static final float VIDA = 3.4f;
 
-	private float x, y, vx, vy;
 	private final float radio;
 	private float restante = VIDA;
 
 	public Lava(float x, float y, float vx, float vy) {
-		this.x = x;
-		this.y = y;
-		this.vx = vx;
-		this.vy = vy;
+		super(x, y, vx, vy);
 		this.radio = MathUtils.random(8f, 12f);
 	}
 
+	@Override
 	public void update(float delta) {
-		x += vx * delta;
-		y += vy * delta;
+		avanzar(delta);
 		float roce = Math.max(0f, 1f - 0.15f * delta);
 		vx *= roce;
 		vy *= roce;
@@ -36,11 +32,15 @@ public class Lava {
 		return dx * dx + dy * dy < rr * rr;
 	}
 
-	public boolean isExpirada() {
-		return restante <= 0 || x < -80 || x > Constantes.ANCHO + 80 || y < -80 || y > Constantes.ALTO + 80;
+	public boolean isExpirada() { return haTerminado(); }
+
+	@Override
+	public boolean haTerminado() {
+		return restante <= 0 || fueraDePantalla(80f);
 	}
 
 	/** Debe llamarse con el ShapeRenderer ya iniciado en modo Filled. */
+	@Override
 	public void dibujar(ShapeRenderer shape) {
 		float a = Math.min(1f, restante / 0.6f);
 		float v = (float) Math.sqrt(vx * vx + vy * vy);
@@ -58,7 +58,5 @@ public class Lava {
 		shape.circle(x, y, radio * 0.5f, 14);
 	}
 
-	public float getX() { return x; }
-	public float getY() { return y; }
 	public float getRadio() { return radio; }
 }

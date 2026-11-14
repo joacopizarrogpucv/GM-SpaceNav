@@ -5,7 +5,7 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.math.MathUtils;
 
 /** Modo inercia: flechas o WASD cambian la velocidad por pulsacion. */
-public class MovimientoInercia implements EstrategiaMovimientoNave {
+public class MovimientoInercia implements EstrategiaMovimiento<Nave4> {
 
 	private static final float PASO = 60f;
 	private static final float MAX = 420f;

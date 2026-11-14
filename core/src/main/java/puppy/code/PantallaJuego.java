@@ -16,6 +16,11 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Align;
 
+/**
+ * Controlador de la partida y orquestador de las entidades.
+ * No implementa sus algoritmos de movimiento ni la construccion interna de
+ * objetos: delega respectivamente en Strategy y en los Builders.
+ */
 public class PantallaJuego extends PantallaBase {
 
 	private static final float TAM_BASE_ASTEROIDE = 50f;
@@ -75,10 +80,11 @@ public class PantallaJuego extends PantallaBase {
 	private float proximoPlaneta;
 
 	// estrategias
-	private final EstrategiaMovimiento movRecto = new MovimientoRecto();
+	private final EstrategiaMovimiento<Ball2> movRecto = new MovimientoRecto();
 	private MovimientoGravitatorio movGravedad = null;   // existe solo mientras hay jefe
-	private final EstrategiaMovimientoNave[] modosNave = {
-			new MovimientoInercia(), new MovimientoDirecto(), new MovimientoRotacional() };
+	@SuppressWarnings("unchecked")
+	private final EstrategiaMovimiento<Nave4>[] modosNave = new EstrategiaMovimiento[] {
+	        new MovimientoInercia(), new MovimientoDirecto(), new MovimientoRotacional() };
 	private int modoActual;
 
 	public PantallaJuego(SpaceNavigation game) {
@@ -104,7 +110,12 @@ public class PantallaJuego extends PantallaBase {
 		txBala = new Texture(Gdx.files.internal("Rocket2.png"));
 
 		modoActual = config.getModoNave() % modosNave.length;
-		nave = new Nave4(Constantes.ANCHO / 2f - 22, 30, txNave, hurtSound, modosNave[modoActual]);
+		nave = new NaveBuilder()
+				.posicion(Constantes.ANCHO / 2f - 22, 30)
+				.textura(txNave)
+				.sonidoHerido(hurtSound)
+				.estrategia(modosNave[modoActual])
+				.build();
 		municion = new Municion(dificultad.getMaxBalas());
 
 		proximoJefe = MathUtils.random(120f, 180f); // Primer jefe entre 2 y 3 min
@@ -138,14 +149,28 @@ public class PantallaJuego extends PantallaBase {
 		Vector2 dir = new Vector2(MathUtils.random(Constantes.ANCHO * 0.2f, Constantes.ANCHO * 0.8f) - x,
 				MathUtils.random(0f, Constantes.ALTO * 0.6f) - y).nor();
 
+		// Dos configuraciones reales: comun (defaults) y especiales (tipo explicito).
+		// Ambos caminos emplean Builder, sin alterar las probabilidades ni la fisica.
+		if (tipo == TipoAsteroide.COMUN) {
+			return construirAsteroideComun(x, y, tam, dir.x * vel, dir.y * vel);
+		}
+		return construirAsteroideEspecial(x, y, tam, dir.x * vel, dir.y * vel, tipo);
+	}
+
+	/** Builder para asteroides comunes, aprovechando los valores predeterminados. */
+	private Ball2 construirAsteroideComun(float x, float y, float tam, float vx, float vy) {
 		return new AsteroideBuilder()
-				.posicion(x, y)
-				.tamano(tam)
-				.velocidad(dir.x * vel, dir.y * vel)
-				.textura(txAsteroide)
-				.estrategia(movRecto)
-				.tipo(tipo)
-				.build();
+				.posicion(x, y).tamano(tam).velocidad(vx, vy)
+				.textura(txAsteroide).build();
+	}
+
+	/** Builder para asteroides especiales, que requieren un tipo y estrategia explicitos. */
+	private Ball2 construirAsteroideEspecial(float x, float y, float tam, float vx, float vy,
+			TipoAsteroide tipo) {
+		return new AsteroideBuilder()
+				.posicion(x, y).tamano(tam).velocidad(vx, vy)
+				.textura(txAsteroide).estrategia(movRecto)
+				.tipo(tipo).build();
 	}
 
 	// ------------------------------------------------------------------ entrada

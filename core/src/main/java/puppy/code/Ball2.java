@@ -12,7 +12,7 @@ public class Ball2 {
 	private final Vector2 velocidad = new Vector2();  // px/s
 	private final float tamano;
 	private final Sprite spr;
-	private EstrategiaMovimiento estrategia;
+	private EstrategiaMovimiento<Ball2> estrategia;
 	private float factorVelocidad = 1f;
 	private float enfriamiento = 0f;                  // evita choques repetidos entre los mismos asteroides
 	private float angulo = 0f;
@@ -114,6 +114,6 @@ public class Ball2 {
 	public float getCentroY() { return posicion.y + tamano / 2f; }
 	public TipoAsteroide getTipo() { return tipo; }
 	public float getRadio() { return tamano / 2f * 0.9f; }
-	public void setEstrategia(EstrategiaMovimiento e) { this.estrategia = e; }
+	public void setEstrategia(EstrategiaMovimiento<Ball2> e) { this.estrategia = e; }
 	public void setFactorVelocidad(float f) { this.factorVelocidad = f; }
 }

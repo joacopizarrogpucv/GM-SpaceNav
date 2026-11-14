@@ -4,7 +4,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 
 /** Modo nuevo 1: movimiento directo en 8 direcciones (flechas o WASD), se detiene al soltar. */
-public class MovimientoDirecto implements EstrategiaMovimientoNave {
+public class MovimientoDirecto implements EstrategiaMovimiento<Nave4> {
 
 	private static final float VELOCIDAD = 320f;
 

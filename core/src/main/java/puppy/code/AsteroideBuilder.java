@@ -14,14 +14,14 @@ public class AsteroideBuilder {
 	private float tamano = 50f;
 	private float vx, vy;
 	private Texture textura;
-	private EstrategiaMovimiento estrategia = new MovimientoRecto(); // valor por defecto
+	private EstrategiaMovimiento<Ball2> estrategia = new MovimientoRecto(); // valor por defecto
 	private TipoAsteroide tipo = TipoAsteroide.COMUN;
 
 	public AsteroideBuilder posicion(float x, float y) { this.x = x; this.y = y; return this; }
 	public AsteroideBuilder tamano(float tamano) { this.tamano = tamano; return this; }
 	public AsteroideBuilder velocidad(float vx, float vy) { this.vx = vx; this.vy = vy; return this; }
 	public AsteroideBuilder textura(Texture textura) { this.textura = textura; return this; }
-	public AsteroideBuilder estrategia(EstrategiaMovimiento e) { this.estrategia = e; return this; }
+	public AsteroideBuilder estrategia(EstrategiaMovimiento<Ball2> e) { this.estrategia = e; return this; }
 
 	public AsteroideBuilder tipo(TipoAsteroide tipo) { this.tipo = tipo; return this; }
 
@@ -38,6 +38,6 @@ public class AsteroideBuilder {
 	float getVx() { return vx; }
 	float getVy() { return vy; }
 	Texture getTextura() { return textura; }
-	EstrategiaMovimiento getEstrategia() { return estrategia; }
+	EstrategiaMovimiento<Ball2> getEstrategia() { return estrategia; }
 	TipoAsteroide getTipo() { return tipo; }
 }

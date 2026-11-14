@@ -8,7 +8,7 @@ import com.badlogic.gdx.math.MathUtils;
  * Modo nuevo 2 (estilo Asteroids): IZQ/DER o A/D rotan, ARRIBA/W acelera,
  * ABAJO/S frena. Los disparos salen en la direccion en que apunta la nave.
  */
-public class MovimientoRotacional implements EstrategiaMovimientoNave {
+public class MovimientoRotacional implements EstrategiaMovimiento<Nave4> {
 
 	private static final float GIRO = 200f;      // grados por segundo
 	private static final float EMPUJE = 450f;    // px/s^2
