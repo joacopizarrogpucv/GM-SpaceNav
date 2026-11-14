@@ -89,7 +89,7 @@ El juego reproduce `assets/jefe-musica.ogg` en bucle mientras hay un jefe. Para 
 
 | Ruta | Contenido |
 | --- | --- |
-| `core/src/main/java/puppy/code/` | Todo el juego (31 clases, ver tabla siguiente) |
+| `core/src/main/java/puppy/code/` | Todo el juego (32 clases, ver tabla siguiente) |
 | `lwjgl3/src/main/java/puppy/Lwjgl3/` | Lanzador de escritorio `Lwjgl3Launcher` |
 | `assets/` | Imágenes y audio |
 | `build.gradle`, `settings.gradle` | Configuración general |
@@ -99,10 +99,10 @@ El juego reproduce `assets/jefe-musica.ogg` en bucle mientras hay un jefe. Para 
 | --- | --- |
 | Pantallas | `SpaceNavigation`, `PantallaBase` (abstracta), `PantallaMenu`, `PantallaJuego`, `PantallaGameOver` |
 | Jugador | `Nave4`, `Bullet`, `Municion` |
-| Enemigos y eventos | `Ball2` (asteroide), `TipoAsteroide`, `Cometa`, `Planeta`, `PlanetaErrante`, `Lava`, `JefeEstrella`, `LaserJefe` |
+| Enemigos y eventos | `Ball2` (asteroide), `TipoAsteroide`, `Cometa`, `Planeta`, `PlanetaErrante`, `Lava`, `JefeEstrella`, `LaserJefe`, `Proyectil` (abstracta) |
 | Ítems | `ItemRecarga`, `ItemMultiplicador` |
-| Movimiento (Strategy) | `EstrategiaMovimiento`, `MovimientoRecto`, `MovimientoGravitatorio`, `EstrategiaMovimientoNave`, `MovimientoInercia`, `MovimientoDirecto`, `MovimientoRotacional` |
-| Configuración y creación | `ConfiguracionJuego` (Singleton), `Dificultad`, `AsteroideBuilder` (Builder), `Constantes` |
+| Movimiento (Strategy) | `EstrategiaMovimiento<T>`, `MovimientoRecto`, `MovimientoGravitatorio`, `MovimientoInercia`, `MovimientoDirecto`, `MovimientoRotacional` |
+| Configuración y creación | `ConfiguracionJuego` (Singleton), `Dificultad`, `AsteroideBuilder` (Builder), `NaveBuilder` (Builder), `Constantes` |
 | Visual | `Fondo` (estrellas con parallax), `Texto` (texto con sombra) |
 
 ## Solución de problemas
